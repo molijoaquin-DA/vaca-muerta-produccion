@@ -1,0 +1,31 @@
+# Datos y calculo numerico
+pandas
+numpy
+scipy
+
+# Visualizacion estatica e interactiva
+matplotlib
+seaborn
+plotly
+
+# Regresion, clasificacion, clustering y evaluacion
+scikit-learn
+
+# Guardado y carga de modelos
+joblib
+
+# Descarga de datos publicos
+requests
+
+# Lectura y escritura de Excel y Parquet
+openpyxl
+pyarrow
+
+# Notebooks en VS Code y JupyterLab
+ipykernel
+jupyterlab
+ipywidgets
+nbconvert
+
+# Dependencias sin fijar: al validar el entorno, registrar las versiones
+# instaladas en requirements-lock.txt para reproducir los resultados.
