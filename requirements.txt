@@ -7,6 +7,8 @@ scipy
 matplotlib
 seaborn
 plotly
+folium
+branca
 
 # Regresion, clasificacion, clustering y evaluacion
 scikit-learn
