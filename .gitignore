@@ -221,3 +221,6 @@ __marimo__/
 
 # Archivos de macOS
 .DS_Store
+
+# Datos temporales de gráficos
+.chart-data-*/
