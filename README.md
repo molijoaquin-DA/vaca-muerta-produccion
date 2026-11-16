@@ -86,49 +86,35 @@ El RMSE se expresa en la unidad del objetivo correspondiente. En esta ejecución
 
 ### 3. Detección de anomalías con Isolation Forest
 
-[03_modelos_no_supervisados.ipynb](notebooks/03_modelos_no_supervisados.ipynb) parte del CSV procesado y se ejecuta de forma independiente. Ajusta **cuatro modelos**: uno por pozo y otro por registro pozo-mes para cada uno de dos grupos sin pozos compartidos:
+[03_modelos_no_supervisados.ipynb](notebooks/03_modelos_no_supervisados.ipynb)
+Ajusta **cuatro modelos**: uno para detectar pozos anómalos y otro para meses anómalos para cada grupo:
 
 - **La Amarga Chica y Loma Campana:** 449 pozos petrolíferos.
 - **El Orejano:** 63 pozos de un yacimiento predominantemente gasífero.
 
 #### Preparación y criterios de evaluación
 
-Las tasas se calculan por día efectivo y la fracción de tiempo operativo como `tef / días_del_mes`. Para evaluar un registro se exige que el tiempo efectivo esté entre cero y la duración del mes, que los volúmenes sean no negativos y que no haya producción positiva con `tef = 0`. Los datos faltantes no se rellenan con ceros.
-
-Se excluyen de los cuatro modelos los meses con **petróleo, gas y agua simultáneamente en cero**; un cero en uno o dos fluidos se conserva. Se usa la edad calendario del CSV procesado y los cambios de método se buscan antes de aplicar el filtro. Esto permite mantener la referencia temporal y mostrar el primer cambio observado, incluido el intervalo entre observaciones si hubo un hueco.
+Se excluyen de los cuatro modelos los meses con **petróleo, gas y agua simultáneamente en cero**; un cero en uno o dos fluidos se conserva.
 
 | Modelo | Qué evalúa | Variables principales |
 | --- | --- | --- |
-| Perfil del primer año | Una fila por pozo. Requiere los doce meses de edad 0–11 presentes y válidos después del filtro. | Media, mediana, desviación estándar, mínimo y máximo de las tasas y del tiempo operativo; proporciones de categorías y cambios de método dentro del primer año. Se aplica `log1p` a los resúmenes de producción. |
-| Registro mensual | Una fila por pozo y mes, desde el mes de edad 1, con el mes actual y el anterior de calendario válidos. Incluye también pozos que el modelo del primer año no pudo evaluar. | Tasas actuales y cambios respecto del mes anterior en escala logarítmica, edad, fracción de tiempo operativo y categorías del mes. Los aumentos y las transiciones de cero a un valor positivo por fluido se registran como contexto para interpretar las alertas. |
+| Pozos anomalos | Una fila por pozo. Requiere los doce meses de edad 0–11 presentes y válidos después del filtro. | Media, mediana, desviación estándar, mínimo y máximo de las tasas y del tiempo operativo; proporciones de categorías y cambios de método dentro del primer año. Se aplica `log1p` a los resúmenes de producción. |
+| Meses anomalos | Una fila por pozo y mes, desde el mes de edad 1, con el mes actual y el anterior de calendario válidos. Incluye también pozos que el modelo del primer año no pudo evaluar. | Tasas actuales y cambios respecto del mes anterior en escala logarítmica, edad, fracción de tiempo operativo y categorías del mes. Los aumentos y las transiciones de cero a un valor positivo por fluido se registran como contexto para interpretar las alertas. |
 
-Si falta un mes del primer año, el pozo queda sin evaluar en ese modelo. En el modelo mensual, el primer mes y los meses posteriores a un hueco quedan sin etiqueta; esto incluye el mes posterior a uno excluido por producción cero.
+Las categorías de extracción, estado, tipo de pozo, yacimiento y clasificación se codifican como indicadores. Para el perfil anual se promedian dentro de los meses 0–11 y se descartan indicadores según el grupo. El identificador, la fecha, las coordenadas, la inyección de agua y la subclasificación quedan fuera de los predictores.
 
-Las categorías de extracción, estado, tipo de pozo, yacimiento y clasificación se codifican como indicadores. Para el perfil anual se promedian dentro de los meses 0–11 y se descartan indicadores según el grupo. El identificador, la fecha, las coordenadas, la inyección de agua y la subclasificación quedan fuera de los predictores. Las coordenadas se usan para los mapas y su auditoría.
-
-Los cuatro modelos usan 300 árboles, semilla 42 y `contamination='auto'`. La puntuación es `-score_samples`: cuanto mayor, más inusual dentro de ese modelo. El umbral automático es 0,5 en esa escala y no fija un porcentaje de anomalías.
+La puntuación es `-score_samples`: cuanto mayor, más inusual dentro de ese modelo. El umbral automático es 0,5 en esa escala y no fija un porcentaje de anomalías.
 
 #### Resultados de los cuatro modelos
 
-Conteos reproducidos con el CSV incluido en el repositorio, con datos hasta septiembre de 2026 y scikit-learn 1.6.1:
-
-| Grupo | Unidad de análisis | Casos evaluables | Casos marcados | % marcado |
+| Grupo | Modelo | Casos evaluables | Casos marcados | % marcado |
 | --- | --- | ---: | ---: | ---: |
-| La Amarga Chica y Loma Campana | Pozo (primer año) | 384 | 53 | 13,80 % |
-| El Orejano | Pozo (primer año) | 56 | 11 | 19,64 % |
-| La Amarga Chica y Loma Campana | Pozo-mes | 22.662 | 3.801 | 16,77 % |
-| El Orejano | Pozo-mes | 3.594 | 394 | 10,96 % |
+| La Amarga Chica y Loma Campana | Pozos anómalos | 384 | 53 | 13,80 % |
+| El Orejano | Pozos anómalos | 56 | 11 | 19,64 % |
+| La Amarga Chica y Loma Campana | Meses anómalos | 22.662 | 3.801 | 16,77 % |
+| El Orejano | Meses anómalos | 3.594 | 394 | 10,96 % |
 
-El filtro de producción cero excluyó 2.379 registros pozo-mes en La Amarga Chica y Loma Campana y 619 en El Orejano. El modelo mensual marcó al menos un mes en 436 de los 443 pozos evaluables del primer grupo y en 62 de los 63 de El Orejano. Los pozos con más meses observados tienen más oportunidades de acumular alertas.
-
-El ajuste es retrospectivo y usa todo el historial disponible de cada grupo, sin evaluación fuera de muestra ni etiquetas de fallas confirmadas. El porcentaje de alertas se calcula sobre los casos evaluables de cada modelo y no mide exactitud. Las puntuaciones expresan rareza dentro de cada ajuste, no probabilidades ni gravedad comparable entre modelos.
-
-#### Visualizaciones y archivos
-
-- Barras con el resultado del primer año y mapas interactivos por yacimiento: rojo para pozos marcados, azul para los no marcados y gris para los que no se pudieron evaluar.
-- Historial interactivo por pozo con tasas de los tres fluidos, alertas mensuales, cambios de extracción y la ventana del primer año. También se muestra la proporción de alertas por mes calendario y la distribución de alertas acumuladas por pozo, incluidos los pozos evaluados con cero alertas.
-- Boxplots de extracción efectiva en vista completa y ampliada. En gris se muestran los valores atípicos no marcados por el modelo mensual; en rojo, las coincidencias con Isolation Forest; en naranja, los valores atípicos que el modelo no pudo evaluar. Una alerta del modelo multivariado puede quedar dentro de los límites del boxplot.
-- `resultados_isolation_forest_sin_ceros/resumen_cuatro_modelos.csv` y `resultados_isolation_forest_sin_ceros.zip`, generados en el directorio de trabajo de Jupyter. El ZIP reúne la tabla comparativa y dos auditorías por grupo: `registros_no_evaluables.csv` (calidad de producción y `tef`) y `pozos_con_varias_ubicaciones.csv`.
+El modelo mensual marcó al menos un mes en 436 de los 443 pozos evaluables del primer grupo y en 62 de los 63 de El Orejano. Los pozos con más meses observados tienen más oportunidades de acumular alertas.
 
 ## Estructura del repositorio
 
@@ -150,8 +136,6 @@ vaca-muerta-produccion/
 ├── README.md
 └── requirements.txt
 ```
-
-Las visualizaciones están integradas en los notebooks. `reports/figures/` está reservado para futuras exportaciones.
 
 ## Cómo ejecutar
 
@@ -183,7 +167,7 @@ Abrir Jupyter desde la raíz del repositorio o desde `notebooks/`.
 1. Ejecutar `01_exploracion_inicial.ipynb` para revisar y preparar los datos originales.
 2. Guardar el resultado en `data/processed/produccion_limpia_filtrada.csv`.
 3. Ejecutar `02_modelos_supervisados.ipynb` para construir rezagos, ajustar los modelos y evaluar el pronóstico.
-4. Ejecutar `03_modelos_no_supervisados.ipynb` de arriba abajo para ajustar los cuatro modelos, explorar los gráficos y generar el ZIP de resultados. No hace falta ejecutar los notebooks 1 y 2 si ya se dispone del CSV procesado.
+4. Ejecutar `03_modelos_no_supervisados.ipynb` de arriba abajo para ajustar los cuatro modelos
 
 La celda final de exportación del primer notebook utiliza `google.colab.files`. Para ejecutar localmente, reemplazar esa celda por:
 
@@ -192,15 +176,3 @@ ruta_salida = raiz / "data" / "processed" / "produccion_limpia_filtrada.csv"
 ruta_salida.parent.mkdir(parents=True, exist_ok=True)
 df_filtrado.to_csv(ruta_salida, index=False, encoding="utf-8-sig")
 ```
-
-El notebook 2 puede usar directamente el CSV procesado incluido en el repositorio. El notebook 3 usa por defecto la URL del CSV en GitHub. Para trabajar con una copia fija, cambiar `FUENTE = URL_CSV` por `FUENTE = Path("data/processed/produccion_limpia_filtrada.csv")` si el directorio de trabajo es la raíz del repositorio, o por `Path("../data/processed/produccion_limpia_filtrada.csv")` si es `notebooks/`. Si Folium ya se instaló con `requirements.txt`, se puede omitir la línea `!pip install -q folium`. En Colab, la última celda permite descargar el ZIP activando `DESCARGAR_ZIP = True`.
-
-Las dependencias no tienen versiones fijadas. Para reproducir los resultados, conviene registrar las versiones instaladas y conservar la misma copia del CSV.
-
-## Aclaraciones
-
-Una variación de producción o una alerta estadística puede responder a distintos factores. Por sí sola no establece una falla, su causa ni un volumen recuperable. Este proyecto utiliza datos públicos, tiene fines académicos y no constituye una herramienta operativa validada ni representa una posición oficial de YPF.
-
-## Estado del proyecto
-
-Exploración y preparación de datos completadas, pronóstico comparado con persistencia y detección retrospectiva de anomalías implementada para el perfil del primer año y el historial mensual de ambos grupos de yacimientos.
