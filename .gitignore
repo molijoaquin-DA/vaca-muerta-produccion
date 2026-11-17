@@ -225,5 +225,8 @@ __marimo__/
 # Datos temporales de gráficos
 .chart-data-*/
 
+# VSCode
+.vscode/
+
 #venv
 vaca-muerta
