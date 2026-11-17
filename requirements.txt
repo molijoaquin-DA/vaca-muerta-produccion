@@ -12,6 +12,7 @@ branca
 
 # Regresion, clasificacion, clustering y evaluacion
 scikit-learn
+optuna
 
 # Guardado y carga de modelos
 joblib

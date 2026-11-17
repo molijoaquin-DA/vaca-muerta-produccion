@@ -224,3 +224,6 @@ __marimo__/
 
 # Datos temporales de gráficos
 .chart-data-*/
+
+#venv
+vaca-muerta
